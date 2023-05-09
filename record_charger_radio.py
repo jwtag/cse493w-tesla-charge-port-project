@@ -10,7 +10,7 @@ RECORDING_LENGTH = 1  # the length of the recording we're taking in seconds.
                        # This should be long enough to record the entire transmission.
 RADIO_FREQ = 94.9e6  # freq which we're recording upon (in Hz)
 FSPS = 2 * 256 * 256 * 16  # record at about 2Msps
-SAMPLES_OUTPUT_FILE_NAME = "saved_samples.teslasignal"
+SAMPLES_OUTPUT_FILE_NAME = "saved_samples.npy"  # .npy == the official Numpy binary output file extension.
 NUM_SAMPLES = round(FSPS * RECORDING_LENGTH)
 SAMPLING_FREQ = 48000
 
@@ -45,8 +45,8 @@ def record_samples():
     print("samples successfully recorded!")
 
     # plot the collected samples.
-    # TODO:  remove this in final product.
-    _plot_samples(samples)
+    # uncomment if debugging.
+    # _plot_samples(samples)
 
     # return the samples.
     return samples
@@ -54,7 +54,7 @@ def record_samples():
 
 def process_samples(samples):
     """
-    Processes up the provided samples to be clearer using bandpass filtering, squelching.
+    Processes up the provided samples to be clearer using bandpass filtering, squelching, and downsampling.
 
     NOTE:  This was derived from my HW4 code.
 
@@ -67,7 +67,7 @@ def process_samples(samples):
 
     # get a bandpass mask.
     fcutoff = 200000 # Cutoff frequency of filter 100kHz
-    bpm = _taperedbandpassmask(fcutoff, 200000)
+    bpm = _get_taperedbandpassmask(fcutoff, 200000)
 
     # fftshift samples to get a spectrum of data.
     spectrum = np.fft.fftshift(np.fft.fft(samples))
@@ -123,8 +123,8 @@ def process_samples(samples):
     print("squelching complete, returning processed samples.")
 
     # plot the collected samples.
-    # TODO:  remove this in final product.
-    _plot_samples(dscdtheta)
+    # uncomment if debugging.
+    # _plot_samples(dscdtheta)
 
     return dscdtheta
 
@@ -135,8 +135,14 @@ def save_samples(samples):
     :param samples: the samples being saved.
     :return: None.
     """
-    # TODO:  implement this
 
+    # write to the file.
+    np.save(SAMPLES_OUTPUT_FILE_NAME, samples)
+
+    print("successfully saved samples to " + SAMPLES_OUTPUT_FILE_NAME)
+
+    # verify that the data was saved as expected.
+    _verify_saved_samples(samples)
 
 def _plot_samples(samples):
     """
@@ -159,7 +165,7 @@ def _plot_samples(samples):
     print(" max power is", (maxval ** 2), ", at ", freqs[maxindi] / 1e6, "MHz (index ", round(maxindi), ")")
     plt.show()
 
-def _taperedbandpassmask(fcutoff,xwidth):
+def _get_taperedbandpassmask(fcutoff,xwidth):
     """
     Creates + returns a bandpass mask which meets the provided param specifications.
 
@@ -177,6 +183,14 @@ def _taperedbandpassmask(fcutoff,xwidth):
                           np.arange(1.0,0.0,-1.0/xbw), #
                           np.zeros(sbw)))
     return(res)
+
+def _verify_saved_samples(samples):
+    """
+    Verifies that the passed samples were successfully saved in SAMPLES_OUTPUT_FILE_NAME.
+    """
+    loaded_samples = np.load(SAMPLES_OUTPUT_FILE_NAME)
+    assert np.array_equal(samples, loaded_samples)
+    print("verified that data was saved correctly to " + SAMPLES_OUTPUT_FILE_NAME)
 
 # record the samples.
 samples = record_samples()
