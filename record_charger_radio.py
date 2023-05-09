@@ -4,12 +4,15 @@ Records a nearby Tesla charger radio transmission + saves it to a file for repla
 import numpy as np
 import matplotlib.pyplot as plt
 from rtlsdr import RtlSdr
+from copy import copy
 
 RECORDING_LENGTH = 1  # the length of the recording we're taking in seconds.
                        # This should be long enough to record the entire transmission.
 RADIO_FREQ = 94.9e6  # freq which we're recording upon (in Hz)
 FSPS = 2 * 256 * 256 * 16  # record at about 2Msps
 SAMPLES_OUTPUT_FILE_NAME = "saved_samples.teslasignal"
+NUM_SAMPLES = round(FSPS * RECORDING_LENGTH)
+SAMPLING_FREQ = 48000
 
 
 def record_samples():
@@ -34,19 +37,16 @@ def record_samples():
 
     # config sdr object
     sdr.sample_rate = FSPS
-    sdr.center_freq = RADIO_FREQ
-
-    # calculate number of samples we wish to collect.
-    N = round(FSPS * RECORDING_LENGTH)
+    sdr.center_freq = RADIO_FREQ    
 
     # collect the samples
-    samples = sdr.read_samples(N)  # Collect N samples.
+    samples = sdr.read_samples(NUM_SAMPLES)  # Collect N samples.
 
     print("samples successfully recorded!")
 
     # plot the collected samples.
     # TODO:  remove this in final product.
-    _plot_samples(samples, N)
+    _plot_samples(samples)
 
     # return the samples.
     return samples
@@ -54,14 +54,79 @@ def record_samples():
 
 def process_samples(samples):
     """
-    Processes up the provided samples to be clearer.
+    Processes up the provided samples to be clearer using bandpass filtering, squelching.
+
+    NOTE:  This was derived from my HW4 code.
 
     :param samples: the samples being processed.
     :return: a cleaned-up version of the samples.
     """
-    # TODO:  implement this
     print("processing samples")
-    return samples
+
+    print("filtering with bandpass mask")
+
+    # get a bandpass mask.
+    fcutoff = 200000 # Cutoff frequency of filter 100kHz
+    bpm = _taperedbandpassmask(fcutoff, 200000)
+
+    # fftshift samples to get a spectrum of data.
+    spectrum = np.fft.fftshift(np.fft.fft(samples))
+
+    # filter spectrum w/ bandpass mask.
+    filteredspectrum = spectrum * bpm
+
+    # Convert masked spectrum back to time domain to get filtered signal 
+    filteredsignal = np.fft.ifft(np.fft.fftshift(filteredspectrum))
+
+    # get theta from filtered signal
+    theta = np.arctan2(filteredsignal.imag,filteredsignal.real)
+
+    # setup various arrays used for squelching signal.
+    abssignal = np.abs(filteredsignal)
+    meanabssignal = np.mean(abssignal)
+    thetasquelched = copy(theta)
+    for i in range(NUM_SAMPLES):
+        if (abssignal[i]<(meanabssignal/3.0)):
+            thetasquelched[i] = 0.0
+    derivthetap0 = np.convolve([1,-1],theta,'same')
+    derivthetapp = np.convolve([1,-1],(theta+np.pi) % (2*np.pi),'same')
+
+    print("bandpass filter complete.  squelching signal...")
+
+    # do squelching...
+    derivthetap0[100:110]-derivthetapp[100:110]
+    derivthetap0 = np.convolve([1,-1],thetasquelched,'same')
+    derivthetapp = np.convolve([1,-1],(thetasquelched+np.pi) % (2*np.pi),'same')
+    # The 0, +pi comparison method
+    # deriv (theta plus pi)
+    derivtheta = np.zeros(len(derivthetap0))
+    for i in range(len(derivthetap0)):
+        if (abs(derivthetap0[i])<abs(derivthetapp[i])):
+            derivtheta[i] = derivthetap0[i] 
+        else:
+            derivtheta[i] = derivthetapp[i] 
+    cdtheta = copy(derivtheta)
+    spikethresh = 2
+    cdtheta = copy(derivtheta) # Cleaned derivative of theta
+    for i in range(1,len(derivtheta)-1):
+        if (abs(derivtheta[i])>spikethresh):
+            cdtheta[i] = (derivtheta[i-1]+derivtheta[i+1])/2.0
+
+    # now that squelching is complete, let's downsample
+    dsf = round(FSPS / SAMPLING_FREQ) # round(1048576/48000)=22
+    dscdtheta = cdtheta[::dsf] # downsample by 22 (or whatever dsf is)
+    dscdtheta2 = copy(dscdtheta)
+    for i in range(len(dscdtheta2)):
+        dscdtheta2[i] = np.sum(cdtheta[i*dsf:(i+1)*dsf])/dsf
+    dscdtheta = copy(dscdtheta2)
+
+    print("squelching complete, returning processed samples.")
+
+    # plot the collected samples.
+    # TODO:  remove this in final product.
+    _plot_samples(dscdtheta)
+
+    return dscdtheta
 
 
 def save_samples(samples):
@@ -73,7 +138,7 @@ def save_samples(samples):
     # TODO:  implement this
 
 
-def _plot_samples(samples, N):
+def _plot_samples(samples):
     """
     Plots out the samples on a plot.
 
@@ -94,6 +159,24 @@ def _plot_samples(samples, N):
     print(" max power is", (maxval ** 2), ", at ", freqs[maxindi] / 1e6, "MHz (index ", round(maxindi), ")")
     plt.show()
 
+def _taperedbandpassmask(fcutoff,xwidth):
+    """
+    Creates + returns a bandpass mask which meets the provided param specifications.
+
+    Taken from CSE493W Jupyter notebook.
+    """
+    fcutoff_n = fcutoff / FSPS # fcutoff, normalized
+    xwidth_n = xwidth / FSPS # transition width, normalized
+    
+    pbfw = round(2*fcutoff_n * NUM_SAMPLES)
+    xbw = round(xwidth_n * NUM_SAMPLES)
+    sbw = int((NUM_SAMPLES-pbfw-xbw-xbw)/2)
+    res = np.concatenate((np.zeros(sbw), #
+                          np.arange(0.0,1.0,1.0/xbw), #
+                          np.ones(pbfw), #
+                          np.arange(1.0,0.0,-1.0/xbw), #
+                          np.zeros(sbw)))
+    return(res)
 
 # record the samples.
 samples = record_samples()
