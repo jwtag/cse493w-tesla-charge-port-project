@@ -3,15 +3,16 @@ Records a nearby Tesla charger radio transmission + saves it to a file for repla
 """
 import numpy as np
 import matplotlib.pyplot as plt
-from rtlsdr import RtlSdr
+import SoapySDR
+from SoapySDR import *  # import SoapySDR constants
 from copy import copy
 
-RECORDING_LENGTH = 1  # the length of the recording we're taking in seconds.
+RECORDING_LENGTH = 5  # the length of the recording we're taking in seconds.
                        # This should be long enough to record the entire transmission.
-RADIO_FREQ = 94.9e6  # freq which we're recording upon (in Hz)
+RADIO_FREQ = 315e6  # freq which we're recording upon (in Hz).  Tesla charger radio freq is 315mHz
 FSPS = 2 * 256 * 256 * 16  # record at about 2Msps
 SAMPLES_OUTPUT_FILE_NAME = "saved_samples.npy"  # .npy == the official Numpy binary output file extension.
-NUM_SAMPLES = round(FSPS * RECORDING_LENGTH)
+NUM_SAMPLES = round(FSPS * RECORDING_LENGTH * 10)
 SAMPLING_FREQ = 48000
 
 
@@ -32,21 +33,29 @@ def record_samples():
     except NameError:
         print("No SDR instance found")
 
-    # open up the sdr object
-    sdr = RtlSdr()
+    # setup hackrf sdr object
+    args = dict(driver="hackrf")
+    sdr = SoapySDR.Device(args)
 
     # config sdr object
-    sdr.sample_rate = FSPS
-    sdr.center_freq = RADIO_FREQ    
+    sdr.setSampleRate(SOAPY_SDR_RX, 0, FSPS)
+    sdr.setFrequency(SOAPY_SDR_RX, 0, RADIO_FREQ)   
 
-    # collect the samples
-    samples = sdr.read_samples(NUM_SAMPLES)  # Collect N samples.
+    # create numpy array to store samples.
+    samples = np.array([0] * NUM_SAMPLES, np.complex64)
+
+    # collect samples
+    rxStream = sdr.setupStream(SOAPY_SDR_RX, SOAPY_SDR_CF32)
+    sdr.activateStream(rxStream) # start streaming
+    sdr.readStream(rxStream, [samples], len(samples))
+    sdr.deactivateStream(rxStream)
+    sdr.closeStream(rxStream)
 
     print("samples successfully recorded!")
 
     # plot the collected samples.
     # uncomment if debugging.
-    # _plot_samples(samples)
+    #_plot_samples(samples)
 
     # return the samples.
     return samples
@@ -124,7 +133,7 @@ def process_samples(samples):
 
     # plot the collected samples.
     # uncomment if debugging.
-    # _plot_samples(dscdtheta)
+    #_plot_samples(dscdtheta)
 
     return dscdtheta
 
