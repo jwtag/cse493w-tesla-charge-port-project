@@ -12,7 +12,7 @@ RECORDING_LENGTH = 5  # the length of the recording we're taking in seconds.
 RADIO_FREQ = 315e6  # freq which we're recording upon (in Hz).  Tesla charger radio freq is 315mHz
 FSPS = 2 * 256 * 256 * 16  # record at about 2Msps
 SAMPLES_OUTPUT_FILE_NAME = "saved_samples.npy"  # .npy == the official Numpy binary output file extension.
-NUM_SAMPLES = round(FSPS * RECORDING_LENGTH * 10)
+NUM_SAMPLES = round(FSPS * RECORDING_LENGTH)
 SAMPLING_FREQ = 48000
 
 if __name__ == "__main__":
@@ -55,7 +55,7 @@ if __name__ == "__main__":
 
         # plot the collected samples.
         # uncomment if debugging.
-        #_plot_samples(samples)
+        _plot_samples(samples)
 
         # return the samples.
         return samples
@@ -133,7 +133,7 @@ if __name__ == "__main__":
 
         # plot the collected samples.
         # uncomment if debugging.
-        #_plot_samples(dscdtheta)
+        _plot_samples(dscdtheta)
 
         return dscdtheta
 
