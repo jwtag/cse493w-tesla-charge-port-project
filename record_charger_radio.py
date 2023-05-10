@@ -54,7 +54,6 @@ if __name__ == "__main__":
         print("samples successfully recorded!")
 
         # plot the collected samples.
-        # uncomment if debugging.
         _plot_samples(samples)
 
         # return the samples.
@@ -132,7 +131,6 @@ if __name__ == "__main__":
         print("squelching complete, returning processed samples.")
 
         # plot the collected samples.
-        # uncomment if debugging.
         _plot_samples(dscdtheta)
 
         return dscdtheta
