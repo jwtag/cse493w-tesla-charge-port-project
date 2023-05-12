@@ -74,7 +74,7 @@ if __name__ == "__main__":
         print("filtering with bandpass mask")
 
         # get a bandpass mask.
-        fcutoff = 200000 # Cutoff frequency of filter 100kHz
+        fcutoff = 100000 # Cutoff frequency of filter 100kHz
         bpm = _get_taperedbandpassmask(fcutoff, 200000)
 
         # fftshift samples to get a spectrum of data.

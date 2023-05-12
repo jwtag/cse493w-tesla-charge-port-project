@@ -24,11 +24,12 @@ sdr = SoapySDR.Device(args)
 # config sdr object
 sdr.setSampleRate(SOAPY_SDR_TX, 0, FSPS)
 sdr.setFrequency(SOAPY_SDR_TX, 0, RADIO_FREQ)   
+sdr.setGain(SOAPY_SDR_TX, 0, 47)
 
 # send out saved Tesla radio samples
 txStream = sdr.setupStream(SOAPY_SDR_TX, SOAPY_SDR_CF32)
 sdr.activateStream(txStream) # start stream to send out recording.
-sdr.writeStream(txStream, [samples], len(samples))
+sdr.writeStream(txStream, samples, len(samples))
 sdr.deactivateStream(txStream)
 sdr.closeStream(txStream)
 
