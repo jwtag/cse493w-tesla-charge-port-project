@@ -25,11 +25,17 @@ sdr = SoapySDR.Device(args)
 sdr.setSampleRate(SOAPY_SDR_TX, 0, FSPS)
 sdr.setFrequency(SOAPY_SDR_TX, 0, RADIO_FREQ)   
 sdr.setGain(SOAPY_SDR_TX, 0, 47)
+txStream = sdr.setupStream(SOAPY_SDR_TX, SOAPY_SDR_CF32, [0])
+
+# chop-up the samples into parts that are smaller than the antenna's mtu
+mtu = sdr.getStreamMTU(txStream)
+num_per_buf = (2 * len(samples)) / mtu
+samples_split = np.split(samples, num_per_buf)  # split it into chunks that are about (0.5 * mtu) in size.
 
 # send out saved Tesla radio samples
-txStream = sdr.setupStream(SOAPY_SDR_TX, SOAPY_SDR_CF32)
 sdr.activateStream(txStream) # start stream to send out recording.
-sdr.writeStream(txStream, samples, len(samples))
+for split in samples_split:  # send out each split one-by-one.
+    num_wr = sdr.writeStream(txStream, [split], len(split))
 sdr.deactivateStream(txStream)
 sdr.closeStream(txStream)
 
