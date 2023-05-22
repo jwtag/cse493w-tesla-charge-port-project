@@ -16,7 +16,8 @@ if __name__ == "__main__":
     samples = record_samples(RADIO_FREQ, FSPS, NUM_SAMPLES)
 
     # process samples
-    processed_samples = process_samples(samples, FSPS, NUM_SAMPLES, SAMPLING_FREQ, RADIO_FREQ)
+    # commented out this line since processing is currently not working...
+    # processed_samples = process_samples(samples, FSPS, NUM_SAMPLES, SAMPLING_FREQ, RADIO_FREQ)
 
     # save the samples.     
     save_samples(samples, SAMPLES_OUTPUT_FILE_NAME)
