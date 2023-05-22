@@ -4,6 +4,10 @@ import SoapySDR
 from SoapySDR import *  # import SoapySDR constants
 from copy import copy
 
+#
+# Contains code shared across the record_* files.
+#
+
 def record_samples(radio_freq, fsps, num_samples):
     """
     Records samples on the frequency specified by RADIO_FREQ + returns the unmodified recorded sample data.
